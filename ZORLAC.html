@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fortress of Zorlac: Heritage Siege</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cyan: #00f3ff;
+            --magenta: #ff0055;
+            --purple: #9d00ff;
+            --yellow: #ffff00;
+            --bg: #010103;
+            --glass: rgba(0, 15, 30, 0.7);
+        }
+
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Orbitron', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            width: 1200px;
+            height: 750px;
+            border: 2px solid #1a1a1a;
+            background: var(--bg);
+            overflow: hidden;
+            box-shadow: 0 0 100px rgba(0,0,0,1);
+        }
+
+        canvas { width: 100%; height: 100%; display: block; }
+
+        /* SCREENS */
+        .ui-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, rgba(0,20,40,0.4) 0%, rgba(0,0,0,0.98) 100%);
+            z-index: 100;
+            backdrop-filter: blur(15px);
+            transition: opacity 0.5s;
+        }
+
+        /* METADATA BLOCK (TOP LEFT) */
+        .system-meta {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            text-align: left;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.85rem;
+            color: #555;
+            line-height: 1.6;
+            border-left: 2px solid #222;
+            padding-left: 15px;
+        }
+        .secret-link {
+            color: #777;
+            text-decoration: none;
+            cursor: default;
+        }
+
+        /* TITLE GROUP */
+        .title-group {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        h1 { 
+            font-size: 6rem; margin: 0; letter-spacing: 25px;
+            background: linear-gradient(to bottom, #fff 20%, var(--magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 15px rgba(255, 0, 85, 0.4));
+        }
+        .tagline {
+            color: var(--magenta);
+            letter-spacing: 12px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            opacity: 0.8;
+        }
+
+        /* MISSION SELECTION */
+        .mission-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+        }
+        .btn-group { display: flex; gap: 20px; }
+        
+        .btn {
+            background: transparent; border: 1px solid var(--cyan);
+            color: var(--cyan); padding: 18px 40px; font-size: 1.1rem;
+            cursor: pointer; font-family: 'Orbitron'; font-weight: 700;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase; letter-spacing: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn:hover { 
+            background: var(--cyan); color: #000; 
+            box-shadow: 0 0 40px var(--cyan);
+            transform: translateY(-3px);
+        }
+        .btn-slaughter { border-color: var(--magenta); color: var(--magenta); }
+        .btn-slaughter:hover { background: var(--magenta); color: #fff; box-shadow: 0 0 40px var(--magenta); }
+
+        .btn-utility {
+            border-color: #333; color: #444; font-size: 0.8rem; padding: 10px 30px;
+        }
+        .btn-utility:hover { border-color: #888; color: #fff; background: transparent; box-shadow: none; }
+
+        /* LEADERBOARD ARCHIVE */
+        .archive-panel {
+            margin-top: 50px;
+            width: 500px;
+            background: var(--glass);
+            border: 1px solid rgba(0, 243, 255, 0.1);
+            padding: 20px;
+            position: relative;
+        }
+        .archive-panel::before {
+            content: "NEURAL_TELEMETRY";
+            position: absolute; top: -10px; left: 20px;
+            background: var(--bg); padding: 0 10px;
+            font-size: 0.6rem; color: var(--cyan); letter-spacing: 2px;
+        }
+        .score-row {
+            display: flex; justify-content: space-between;
+            font-family: 'Share Tech Mono', monospace;
+            padding: 6px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-size: 1rem;
+        }
+        .score-row.top-tier { color: var(--yellow); text-shadow: 0 0 10px var(--yellow); }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 0; width: 100%;
+            padding: 30px 80px; 
+            display: flex; justify-content: space-between;
+            z-index: 50; pointer-events: none; box-sizing: border-box;
+        }
+        .stat-val { font-size: 2.2rem; font-weight: 900; text-shadow: 0 0 15px var(--cyan); }
+        .stat-label { font-size: 0.75rem; color: var(--cyan); letter-spacing: 3px; font-weight: bold; }
+        .ships-ui { display: flex; gap: 10px; margin-top: 5px; }
+        .ship-unit { width: 22px; height: 14px; background: var(--cyan); clip-path: polygon(0% 20%, 40% 20%, 40% 0%, 100% 50%, 40% 100%, 40% 80%, 0% 80%); }
+
+        .hidden { display: none !important; }
+        #combo-tag { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); color: #ffff00; font-weight: 900; font-size: 1.8rem; opacity: 0; }
+        #proximity-tag { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); color: var(--cyan); font-weight: bold; font-size: 1rem; opacity: 0; }
+        .footer-hint { position: absolute; bottom: 30px; color: #333; font-size: 0.75rem; letter-spacing: 2px; }
+
+        #pilot-name {
+            background: #000; border: 2px solid var(--magenta); color: #fff;
+            padding: 10px; font-family: 'Orbitron'; text-align: center; font-size: 1.5rem;
+            outline: none; text-transform: uppercase; margin: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- ACTIVE HUD -->
+        <div id="hud" class="hidden">
+            <div class="stat" style="align-items: flex-start;">
+                <span class="stat-label">NEURAL SCORE</span>
+                <span id="score-text" class="stat-val">0</span>
+            </div>
+            <div class="stat" style="align-items: center;">
+                <span class="stat-label">RESERVE VESSELS</span>
+                <div id="ships-box" class="ships-ui"></div>
+            </div>
+            <div class="stat" style="align-items: flex-end;">
+                <span class="stat-label">SECTOR</span>
+                <span id="wave-text" class="stat-val">1</span>
+            </div>
+        </div>
+
+        <div id="combo-tag">COMBO x1</div>
+        <div id="proximity-tag">DANGER ZONE x5</div>
+
+        <!-- MAIN MENU -->
+        <div id="start-menu" class="ui-screen">
+            <div class="system-meta">
+                CODE: ZX81_PROTOCOL<br>
+                CONCEPT: <a href="https://www.zx81stuff.org.uk/zx81/tape/FortressOfZorlac" target="_blank" class="secret-link">Paul Carlson</a> (1982)<br>
+                RECON: Luís Cunha (2026)
+            </div>
+
+            <div class="title-group">
+                <h1>ZORLAC</h1>
+                <div class="tagline">REIMAGINED 2026</div>
+            </div>
+
+            <div class="mission-panel">
+                <div class="btn-group">
+                    <button class="btn" onclick="init(1)">CADET</button>
+                    <button class="btn" onclick="init(2)">ACE</button>
+                    <button class="btn btn-slaughter" onclick="init(4)">SLAUGHTER</button>
+                </div>
+                <button class="btn btn-utility" onclick="exitGame()">TERMINATE SYSTEM</button>
+            </div>
+
+            <div class="archive-panel">
+                <div id="leaderboard-list"></div>
+            </div>
+
+            <div class="footer-hint">WASD [MOVE] | SPACE [FIRE] | ESC [MENU]</div>
+        </div>
+
+        <!-- GAME OVER -->
+        <div id="game-over" class="ui-screen hidden">
+            <h1 style="filter: grayscale(1); opacity: 0.5;">DEFEATED</h1>
+            <h2 id="final-score-text" style="color: var(--cyan); margin: 10px 0 30px 0;">SCORE: 0</h2>
+            
+            <div id="new-highscore-ui" class="hidden">
+                <div style="color: var(--yellow); letter-spacing: 5px; font-size: 0.8rem;">NEW TOP RECORD DETECTED</div>
+                <input type="text" id="pilot-name" maxlength="3" placeholder="ID">
+                <br>
+                <button class="btn" onclick="saveScore()">RECORD DATA</button>
+            </div>
+
+            <div class="archive-panel" id="final-leaderboard-view">
+                <div id="final-list"></div>
+            </div>
+
+            <button class="btn btn-utility" style="margin-top: 20px;" onclick="showMenu()">RETURN TO ARCHIVE</button>
+        </div>
+    </div>
+
+<script>
+/** AUDIO **/
+const audio = {
+    ctx: new (window.AudioContext || window.webkitAudioContext)(),
+    play(freq, type, dur, vol, slide = 0) {
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        if (slide) osc.frequency.exponentialRampToValueAtTime(slide, this.ctx.currentTime + dur);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + dur);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + dur);
+    },
+    cannon() {
+        this.play(80, 'sine', 0.4, 0.5, 20); 
+        this.play(1200, 'square', 0.05, 0.04);
+    }
+};
+
+/** SCORES **/
+let highScores = JSON.parse(localStorage.getItem('zorlac_v26_scores')) || [
+    {name: 'ACE', score: 50000, sector: 5},
+    {name: 'LCU', score: 35000, sector: 4},
+    {name: 'PCAR', score: 20000, sector: 3}
+];
+
+function updateLeaderboardUI(id) {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+    highScores.sort((a,b) => b.score - a.score).slice(0, 5).forEach((s, i) => {
+        const row = document.createElement('div');
+        row.className = `score-row ${i < 3 ? 'top-tier' : ''}`;
+        row.innerHTML = `<span>0${i+1} ${s.name}</span><span>SEC ${s.sector}</span><span>${s.score.toLocaleString()}</span>`;
+        el.appendChild(row);
+    });
+}
+
+function saveScore() {
+    const name = document.getElementById('pilot-name').value.toUpperCase() || '???';
+    highScores.push({name, score, sector: wave});
+    highScores.sort((a,b) => b.score - a.score);
+    highScores = highScores.slice(0, 10);
+    localStorage.setItem('zorlac_v26_scores', JSON.stringify(highScores));
+    document.getElementById('new-highscore-ui').classList.add('hidden');
+    updateLeaderboardUI('final-list');
+}
+
+/** SHIP **/
+class ViperShip {
+    constructor(canvas) { this.canvas = canvas; this.reset(); }
+    reset() { this.x = 120; this.y = this.canvas.height / 2; this.w = 55; this.h = 30; this.speed = 8.5; this.cooldown = 0; this.alive = true; this.invuln = 180; }
+    update(keys) {
+        if (!this.alive) return;
+        if (keys['w'] || keys['W'] || keys['ArrowUp']) this.y -= this.speed;
+        if (keys['s'] || keys['S'] || keys['ArrowDown']) this.y += this.speed;
+        if (keys['a'] || keys['A'] || keys['ArrowLeft']) this.x -= this.speed;
+        if (keys['d'] || keys['D'] || keys['ArrowRight']) this.x += this.speed;
+        this.x = Math.max(40, Math.min(this.canvas.width/2 - 100, this.x));
+        this.y = Math.max(50, Math.min(this.canvas.height - 50, this.y));
+        if (this.cooldown > 0) this.cooldown--;
+        if (this.invuln > 0) this.invuln--;
+        if (Math.random() > 0.3) particles.push(new TrailParticle(this.x - 25, this.y, varColor('--cyan')));
+    }
+    draw(ctx) {
+        if (!this.alive) return;
+        if (this.invuln > 0 && Math.floor(Date.now() / 80) % 2 === 0) return;
+        ctx.save();
+        ctx.shadowBlur = 15; ctx.shadowColor = varColor('--cyan');
+        ctx.fillStyle = varColor('--cyan');
+        ctx.beginPath();
+        ctx.moveTo(this.x + 35, this.y); ctx.lineTo(this.x - 20, this.y - 18); 
+        ctx.lineTo(this.x - 10, this.y); ctx.lineTo(this.x - 20, this.y + 18); 
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.fillRect(this.x + 5, this.y - 2, 12, 4);
+        if (this.invuln > 0) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(this.x + 5, this.y, 55, 0, Math.PI*2); ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+
+/** WALLS **/
+class SiegeWall {
+    constructor(w, h, color, speed, thickness) {
+        this.w = w; this.h = h; this.color = color; this.speed = speed; this.thickness = thickness;
+        this.perimeter = 2 * (w + h); this.segSize = 35; 
+        this.numSegs = Math.floor(this.perimeter / this.segSize);
+        this.segs = new Array(this.numSegs).fill(true); this.offset = 0;
+    }
+    update() { this.offset = (this.offset + this.speed) % this.perimeter; }
+    getXY(pos, cx, cy) {
+        pos = (pos + this.perimeter) % this.perimeter;
+        if (pos < this.w) return { x: cx - this.w / 2 + pos, y: cy - this.h / 2 };
+        if (pos < this.w + this.h) return { x: cx + this.w / 2, y: cy - this.h / 2 + (pos - this.w) };
+        if (pos < 2 * this.w + this.h) return { x: cx + this.w / 2 - (pos - (this.w + this.h)), y: cy + this.h / 2 };
+        return { x: cx - this.w / 2, y: cy + this.h / 2 - (pos - (2 * this.w + this.h)) };
+    }
+    checkHit(bx, by, cx, cy) {
+        for (let i = 0; i < this.numSegs; i++) {
+            if (!this.segs[i]) continue;
+            let pStart = (this.offset + i * this.segSize) % this.perimeter;
+            let s = this.getXY(pStart, cx, cy);
+            let e = this.getXY((pStart + this.segSize - 2) % this.perimeter, cx, cy);
+            let minX = Math.min(s.x, e.x) - 10;
+            let maxX = Math.max(s.x, e.x) + 10;
+            let minY = Math.min(s.y, e.y) - 10;
+            let maxY = Math.max(s.y, e.y) + 10;
+            if (bx >= minX && bx <= maxX && by >= minY && by <= maxY) { this.segs[i] = false; return true; }
+        }
+        return false;
+    }
+    draw(ctx, cx, cy) {
+        ctx.strokeStyle = this.color; ctx.lineWidth = this.thickness; ctx.lineCap = 'butt';
+        for (let i = 0; i < this.numSegs; i++) {
+            if (!this.segs[i]) continue;
+            let s = this.getXY((this.offset + i * this.segSize) % this.perimeter, cx, cy);
+            let e = this.getXY((this.offset + i * this.segSize + this.segSize - 2) % this.perimeter, cx, cy);
+            ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke();
+        }
+    }
+}
+
+/** ZORLAC **/
+class ZorlacStalker {
+    constructor(canvas, wave, diff) {
+        this.cx = canvas.width - 220; this.stopX = canvas.width - 450; this.cy = canvas.height / 2;
+        this.internalY = 0; this.yStep = 0;
+        this.aggro = (diff * 0.5) + (wave * 0.015);
+        this.walls = [
+            new SiegeWall(180, 260, varColor('--magenta'), 2.2 * this.aggro, 10),
+            new SiegeWall(300, 420, varColor('--purple'), -1.5 * this.aggro, 12),
+            new SiegeWall(420, 580, varColor('--cyan'), 1.0 * this.aggro, 14)
+        ];
+        this.cannons = [];
+        for(let i=0; i<4; i++) this.cannons.push({ angle: (i * Math.PI / 2), dist: 380, cd: i * 30 });
+    }
+    update() {
+        this.yStep += 0.05 * this.aggro;
+        this.cy = (canvas.height/2) + Math.sin(this.yStep * 0.4) * 60;
+        this.internalY = Math.sin(this.yStep) * 100;
+        if (this.cx > this.stopX) this.cx -= 0.08;
+        this.walls.forEach(w => w.update());
+        this.cannons.forEach(c => { c.angle += 0.015 * this.aggro; if (c.cd > 0) c.cd--; });
+    }
+    draw(ctx) {
+        this.walls.forEach(w => w.draw(ctx, this.cx, this.cy));
+        const ex = this.cx; const ey = this.cy + this.internalY;
+        ctx.save();
+        ctx.shadowBlur = 20; ctx.shadowColor = varColor('--magenta');
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+        ctx.strokeRect(ex - 15, ey - 50, 30, 25);
+        ctx.fillStyle = varColor('--magenta');
+        ctx.fillRect(ex - 8, ey - 42, 5, 5); ctx.fillRect(ex + 3, ey - 42, 5, 5); 
+        const t = Date.now() / 200;
+        const armL = Math.sin(t) * 20 + Math.sin(t * 2) * 5;
+        const armR = Math.sin(t + 2) * 20 + Math.sin(t * 1.5) * 5;
+        ctx.beginPath();
+        ctx.moveTo(ex, ey - 25); ctx.lineTo(ex, ey + 20);
+        ctx.moveTo(ex - 25, ey - 15); ctx.lineTo(ex + 25, ey - 15);
+        ctx.moveTo(ex - 25, ey - 15); ctx.lineTo(ex - 45, ey - 10 + armL); ctx.lineTo(ex - 55, ey + 15 + armL * 1.2);
+        ctx.moveTo(ex + 25, ey - 15); ctx.lineTo(ex + 45, ey - 10 - armR); ctx.lineTo(ex + 55, ey + 15 - armR * 1.2);
+        ctx.moveTo(ex, ey + 20); ctx.lineTo(ex - 20, ey + 55); ctx.moveTo(ex, ey + 20); ctx.lineTo(ex + 20, ey + 55); 
+        ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey - 5, 10 + Math.sin(t/2)*4, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+        this.cannons.forEach(c => {
+            let x = this.cx + Math.cos(c.angle) * c.dist;
+            let y = this.cy + Math.sin(c.angle) * c.dist;
+            ctx.fillStyle = varColor('--magenta'); ctx.beginPath(); ctx.arc(x, y, 22, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI*2); ctx.fill();
+        });
+    }
+}
+
+/** VFX **/
+class TrailParticle { constructor(x, y, color) { this.x = x; this.y = y; this.color = color; this.life = 1.0; this.size = 2 + Math.random()*3; } update() { this.x -= 3.5; this.life -= 0.04; } draw(ctx) { ctx.globalAlpha = this.life; ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y - this.size/2, this.size*2, this.size); } }
+class Debris { constructor(x, y, color) { this.x = x; this.y = y; this.color = color; this.vx = (Math.random()-0.5)*20; this.vy = (Math.random()-0.5)*20; this.life = 1.0; } update() { this.x += this.vx; this.y += this.vy; this.life -= 0.02; } draw(ctx) { ctx.globalAlpha = this.life; ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 5, 5); } }
+
+/** ENGINE **/
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let player, zorlac, bullets = [], enemyBullets = [], particles = [], keys = {};
+let score = 0, wave = 1, lives = 5, diffMult = 1, combo = 0, state = 'menu', shake = 0, hitStop = 0, timer = 0;
+
+function resize() { canvas.width = 1200; canvas.height = 750; }
+resize();
+
+window.addEventListener('keydown', e => { 
+    keys[e.key] = true; 
+    if (e.key === 'Escape') showMenu();
+    if (state === 'playing' && e.key === ' ') shoot(); 
+});
+window.addEventListener('keyup', e => keys[e.key] = false);
+
+function shoot() {
+    if (player.alive && player.cooldown <= 0) {
+        bullets.push({x: player.x + 30, y: player.y, startX: player.x, vx: 25});
+        player.cooldown = 10;
+        audio.play(500, 'square', 0.1, 0.1, 50);
+    }
+}
+
+function init(diff) {
+    diffMult = diff; score = 0; wave = 1; lives = 5;
+    player = new ViperShip(canvas);
+    zorlac = new ZorlacStalker(canvas, wave, diffMult);
+    bullets = []; enemyBullets = []; particles = []; combo = 0;
+    state = 'playing';
+    document.getElementById('start-menu').classList.add('hidden');
+    document.getElementById('game-over').classList.add('hidden');
+    document.getElementById('hud').classList.remove('hidden');
+    updateHUD();
+}
+
+function showMenu() {
+    state = 'menu';
+    document.getElementById('start-menu').classList.remove('hidden');
+    document.getElementById('game-over').classList.add('hidden');
+    document.getElementById('hud').classList.add('hidden');
+    updateLeaderboardUI('leaderboard-list');
+}
+
+function exitGame() { if (confirm("Terminate Simulation?")) { window.close(); window.location.href = 'about:blank'; } }
+
+function updateHUD() {
+    document.getElementById('score-text').innerText = Math.floor(score).toLocaleString();
+    document.getElementById('wave-text').innerText = wave;
+    const box = document.getElementById('ships-box'); box.innerHTML = '';
+    for(let i=0; i<lives; i++) box.innerHTML += '<div class="ship-unit"></div>';
+}
+
+function update() {
+    if (state === 'menu') return;
+    if (hitStop > 0) { hitStop--; return; }
+    if (state === 'dying' || state === 'cleared') {
+        particles.forEach(p => p.update());
+        if (--timer <= 0) {
+            if (state === 'dying' && lives > 0) { state = 'playing'; player.reset(); }
+            else if (state === 'dying') { 
+                state = 'gameover'; 
+                document.getElementById('game-over').classList.remove('hidden');
+                document.getElementById('final-score-text').innerText = "SCORE: " + Math.floor(score).toLocaleString();
+                if (highScores.length < 10 || score > highScores[highScores.length-1].score) { document.getElementById('new-highscore-ui').classList.remove('hidden'); }
+                updateLeaderboardUI('final-list');
+            }
+            else { wave++; zorlac = new ZorlacStalker(canvas, wave, diffMult); state = 'playing'; updateHUD(); }
+        }
+        return;
+    }
+
+    player.update(keys);
+    zorlac.update();
+
+    zorlac.cannons.forEach(c => {
+        if (c.cd <= 0 && zorlac.cx <= canvas.width) {
+            let x = zorlac.cx + Math.cos(c.angle) * c.dist;
+            let y = zorlac.cy + Math.sin(c.angle) * c.dist;
+            enemyBullets.push({x, y, vx: -9 - (wave * 0.05)}); 
+            c.cd = Math.max(15, (130 / zorlac.aggro));
+            audio.cannon(); shake = 6;
+        }
+    });
+
+    const proxTag = document.getElementById('proximity-tag');
+    let distToFort = zorlac.cx - player.x;
+    let currentProxMult = distToFort < 300 ? 5 : (distToFort < 600 ? 2 : 1);
+    if (currentProxMult > 1 && state === 'playing') {
+        proxTag.style.opacity = 1;
+        proxTag.innerText = currentProxMult === 5 ? "DANGER ZONE x5" : "COMBAT RANGE x2";
+    } else proxTag.style.opacity = 0;
+
+    bullets.forEach((b, i) => {
+        b.x += b.vx;
+        if (b.x > canvas.width) { bullets.splice(i, 1); combo = 0; }
+        let hit = false;
+        let hitDist = zorlac.cx - b.startX;
+        let pMult = hitDist < 300 ? 5 : (hitDist < 600 ? 2 : 1);
+        zorlac.walls.forEach(w => {
+            if (!hit && w.checkHit(b.x, b.y, zorlac.cx, zorlac.cy)) {
+                combo++; score += (50 * diffMult * Math.min(combo, 10) * pMult); updateHUD();
+                hit = true; shake = 3; audio.play(300, 'square', 0.05, 0.1);
+            }
+        });
+        const ey = zorlac.cy + zorlac.internalY;
+        if (!hit && Math.abs(b.x - zorlac.cx) < 40 && Math.abs(b.y - ey) < 60) {
+            score += (10000 * diffMult * pMult); state = 'cleared'; timer = 100; hitStop = 10;
+            for(let k=0; k<200; k++) particles.push(new Debris(zorlac.cx, ey, '#fff'));
+            audio.play(800, 'sine', 1.0, 0.2, 10); hit = true; shake = 35;
+        }
+        if (hit) bullets.splice(i, 1);
+    });
+
+    enemyBullets.forEach((b, i) => {
+        b.x += b.vx;
+        if (b.x < 0) enemyBullets.splice(i, 1);
+        if (player.alive && player.invuln <= 0 && Math.abs(b.y - player.y) < 20 && Math.abs(b.x - player.x) < 30) {
+            lives--; player.alive = false; state = 'dying'; timer = 80; combo = 0;
+            for(let k=0; k<100; k++) particles.push(new Debris(player.x, player.y, varColor('--cyan')));
+            audio.play(60, 'sawtooth', 1.2, 0.4); updateHUD(); shake = 40;
+        }
+    });
+
+    particles.forEach((p, i) => { p.update(); if(p.life <= 0) particles.splice(i, 1); });
+    if (shake > 0) shake *= 0.85;
+    const tag = document.getElementById('combo-tag');
+    if (combo > 1) { tag.style.opacity = 1; tag.innerText = `COMBO x${Math.min(combo, 10)}`; }
+    else tag.style.opacity = 0;
+}
+
+function draw() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (shake > 0.5) ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
+    if (state !== 'menu') {
+        zorlac.draw(ctx); player.draw(ctx);
+        ctx.fillStyle = '#fff'; bullets.forEach(b => ctx.fillRect(b.x-5, b.y-2, 25, 6));
+        ctx.fillStyle = varColor('--magenta');
+        enemyBullets.forEach(b => { ctx.shadowBlur = 10; ctx.shadowColor = varColor('--magenta'); ctx.fillRect(b.x - 15, b.y - 4, 30, 8); });
+        particles.forEach(p => p.draw(ctx)); ctx.globalAlpha = 1;
+    }
+}
+function varColor(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+updateLeaderboardUI('leaderboard-list');
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>
